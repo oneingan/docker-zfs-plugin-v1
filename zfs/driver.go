@@ -93,9 +93,23 @@ func (zd *ZfsDriver) Create(req *volume.CreateRequest) error {
 		return fmt.Errorf("volume already exists")
 	}
 
-	_, err := zfs.CreateDatasetRecursive(req.Name, opts)
-	if err != nil {
-		return err
+	// Check if snapshot should be cloned
+	if snapshotName, ok := req.Options["from-snapshot"]; ok {
+		// Remove the from-snapshot option since ZFS does not use it.
+		delete(req.Options, "from-snapshot")
+		slog.Info("cloning volume from snapshot", "snapshot", snapshotName, "target", req.Name)
+		// Clone the snapshot in a single step, creating parent volumes as needed.
+		if err := zfscmd.Clone(snapshotName, req.Name, &zfscmd.CloneOpts{
+			CreateParents: true,
+			SetProperties: req.Options,
+		}); err != nil {
+			return fmt.Errorf("failed to clone snapshot %q: %w", snapshotName, err)
+		}
+	} else {
+		// Create a new dataset recursively.
+		if err := zfs.CreateDatasetRecursive(req.Name, req.Options); err != nil {
+			return err
+		}
 	}
 
 	return nil
