@@ -107,7 +107,7 @@ func (zd *ZfsDriver) Create(req *volume.CreateRequest) error {
 		}
 	} else {
 		// Create a new dataset recursively.
-		if err := zfs.CreateDatasetRecursive(req.Name, req.Options); err != nil {
+		if _, err := zfs.CreateDatasetRecursive(req.Name, req.Options); err != nil {
 			return err
 		}
 	}
